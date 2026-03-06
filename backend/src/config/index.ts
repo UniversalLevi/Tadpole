@@ -29,11 +29,14 @@ export const config = {
   maxWithdrawalsPerDay: parseInt(optional('MAX_WITHDRAWALS_PER_DAY', '5'), 10),
   // Phase 2: round timing (ms)
   roundDurationMs: parseInt(optional('ROUND_DURATION_MS', '15000'), 10),
-  bettingWindowMs: parseInt(optional('BETTING_WINDOW_MS', '10000'), 10),
+  bettingWindowMs: parseInt(optional('BETTING_WINDOW_MS', '15000'), 10), // 15 sec betting window
   closingBufferMs: parseInt(optional('CLOSING_BUFFER_MS', '2000'), 10),
+  roundGapAfterSettleMs: parseInt(optional('ROUND_GAP_AFTER_SETTLE_MS', '5000'), 10), // 5 sec gap before next round
   minBetAmount: parseInt(optional('MIN_BET_AMOUNT', '10'), 10),
   maxBetAmount: parseInt(optional('MAX_BET_AMOUNT', '10000'), 10),
   payoutMultiplier: parseInt(optional('PAYOUT_MULTIPLIER', '9'), 10), // 10x for 0-9 game
   // Set MONGODB_USE_TRANSACTIONS=true when using a replica set (required for production). Default false for standalone MongoDB (local dev).
   useMongoTransactions: process.env.MONGODB_USE_TRANSACTIONS === 'true',
+  slowRequestMs: parseInt(optional('SLOW_REQUEST_MS', '500'), 10),
+  slowQueryMs: parseInt(optional('SLOW_QUERY_MS', '200'), 10),
 } as const;

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { config } from '../config/index.js';
+import { withdrawRateLimiter } from '../middleware/rateLimit.js';
 import {
   createWithdrawalRequest,
   getMyWithdrawals,
@@ -22,7 +23,7 @@ router.get('/limits', (_req: Request, res: Response) => {
   });
 });
 
-router.post('/request', async (req: Request, res: Response) => {
+router.post('/request', withdrawRateLimiter, async (req: Request, res: Response) => {
   const userId = req.userId;
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
   const parsed = requestSchema.safeParse({ body: req.body });

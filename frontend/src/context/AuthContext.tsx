@@ -14,7 +14,7 @@ type AuthContextType = {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, referralCode?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => void;
 };
@@ -45,8 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.data.user);
   }, []);
 
-  const register = useCallback(async (email: string, password: string) => {
-    await api.post('/auth/register', { email, password });
+  const register = useCallback(async (email: string, password: string, referralCode?: string) => {
+    await api.post('/auth/register', { email, password, ...(referralCode?.trim() && { referralCode: referralCode.trim() }) });
     await login(email, password);
   }, [login]);
 

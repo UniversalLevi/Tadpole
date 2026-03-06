@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { logWithContext } from '../logs/index.js';
+import { config } from '../config/index.js';
 
 export function requestLogger(req: Request, res: Response, next: NextFunction) {
   const requestId = req.requestId ?? 'unknown';
@@ -20,6 +21,14 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
       status: res.statusCode,
       durationMs: duration,
     });
+    if (duration > config.slowRequestMs) {
+      logWithContext('warn', 'Slow request', {
+        requestId,
+        method: req.method,
+        path: req.path,
+        durationMs: duration,
+      });
+    }
   });
 
   next();

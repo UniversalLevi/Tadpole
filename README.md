@@ -27,3 +27,9 @@ Before considering Phase 1 complete, verify:
 - No negative balance possible
 - Logs show every transaction
 - Admin can freeze user
+
+## Phase 4 (UX & observability)
+
+- **Round cache** — `GET /game/current-round` is served from in-memory cache when a round is active; Mongo is queried only on cache miss (e.g. after restart or between rounds). Slow cache-miss queries are logged when they exceed `SLOW_QUERY_MS`.
+- **CORS / HTTPS** — Set `FRONTEND_ORIGIN` to a single origin in production (no wildcard). For HTTPS, run the backend behind a reverse proxy (e.g. Nginx) that terminates TLS and sets `x-forwarded-proto`; the app will redirect HTTP to HTTPS when `NODE_ENV=production`.
+- **Admin metrics** — `GET /admin/metrics` (admin only): active users (last 15 min), bets per minute, round timing config, payment volume (24h). `GET /admin/analytics` (admin only): daily active users, signup→deposit conversion, bet frequency by day, average bet size, retention (day 1 / day 7). All computed from MongoDB; no Redis required.

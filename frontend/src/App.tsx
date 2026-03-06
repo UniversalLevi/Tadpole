@@ -12,10 +12,13 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Wallet = lazy(() => import('./pages/Wallet'));
 const Withdrawal = lazy(() => import('./pages/Withdrawal'));
 const Game = lazy(() => import('./pages/Game'));
+const Leaderboard = lazy(() => import('./pages/Leaderboard'));
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
 const AdminUsers = lazy(() => import('./pages/admin/Users'));
 const UserDetail = lazy(() => import('./pages/admin/UserDetail'));
 const AdminWithdrawals = lazy(() => import('./pages/admin/Withdrawals'));
+const AdminBonuses = lazy(() => import('./pages/admin/Bonuses'));
+const AdminGrowth = lazy(() => import('./pages/admin/Growth'));
 const AdminSettings = lazy(() => import('./pages/admin/Settings'));
 
 function PageFallback() {
@@ -42,6 +45,7 @@ function App() {
                 <Route path="wallet" element={<Wallet />} />
                 <Route path="withdrawal" element={<Withdrawal />} />
                 <Route path="game" element={<Game />} />
+                <Route path="leaderboard" element={<Leaderboard />} />
               </Route>
               <Route
                 path="/admin"
@@ -54,6 +58,8 @@ function App() {
                 <Route index element={<AdminUsers />} />
                 <Route path="users/:userId" element={<UserDetail />} />
                 <Route path="withdrawals" element={<AdminWithdrawals />} />
+                <Route path="bonuses" element={<AdminBonuses />} />
+                <Route path="growth" element={<AdminGrowth />} />
                 <Route path="settings" element={<AdminSettings />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

@@ -8,7 +8,10 @@ export type WalletTransactionType =
   | 'withdrawal_refund'
   | 'bet_lock'
   | 'bet_win'
-  | 'bet_lose';
+  | 'bet_lose'
+  | 'bonus_credit'
+  | 'cashback'
+  | 'referral_commission';
 
 export type WalletTransactionStatus = 'pending' | 'completed' | 'failed';
 
@@ -17,7 +20,7 @@ const walletTransactionSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     type: {
       type: String,
-      enum: ['deposit', 'withdrawal_request', 'withdrawal_complete', 'admin_adjustment', 'withdrawal_refund', 'bet_lock', 'bet_win', 'bet_lose'],
+      enum: ['deposit', 'withdrawal_request', 'withdrawal_complete', 'admin_adjustment', 'withdrawal_refund', 'bet_lock', 'bet_win', 'bet_lose', 'bonus_credit', 'cashback', 'referral_commission'],
       required: true,
     },
     amount: { type: Number, required: true },

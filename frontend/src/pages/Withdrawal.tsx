@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -9,6 +10,7 @@ type WithdrawalRow = { _id: string; amount: number; status: string; requestedAt:
 type Limits = { minWithdrawalAmount: number; withdrawalCooldownMs: number; maxWithdrawalsPerDay: number };
 
 export default function Withdrawal() {
+  const { user } = useAuth();
   const [amount, setAmount] = useState('');
   const [list, setList] = useState<WithdrawalRow[]>([]);
   const [limits, setLimits] = useState<Limits | null>(null);
@@ -23,6 +25,8 @@ export default function Withdrawal() {
   useEffect(() => {
     load();
   }, []);
+
+  if (user?.role === 'admin') return <Navigate to="/admin" replace />;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

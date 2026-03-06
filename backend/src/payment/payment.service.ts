@@ -1,10 +1,12 @@
 import crypto from 'node:crypto';
 // import Razorpay from 'razorpay';
 import mongoose from 'mongoose';
-import { Payment } from '../models/index.js';
+import { Payment, WalletTransaction, User, Referral } from '../models/index.js';
 import { config } from '../config/index.js';
+import { getGrowthConfig } from '../models/GrowthConfig.js';
 import { getMongoSession, runTransaction } from '../db/mongo.js';
 import { updateBalance } from '../wallet/wallet.service.js';
+import { applyFirstDepositBonus } from '../bonus/bonus.service.js';
 import { logWithContext } from '../logs/index.js';
 import { auditLog } from '../lib/audit.js';
 
@@ -57,28 +59,84 @@ function isReplicaSetRequiredError(e: unknown): boolean {
   return msg.includes('replica set') || msg.includes('Transaction numbers');
 }
 
+export interface CreditDepositResult {
+  isFirstDeposit: boolean;
+}
+
+/**
+ * Centralized deposit credit: adds deposit to wallet, applies first-deposit bonus if applicable.
+ * Call within an existing session. Returns isFirstDeposit for referrer reward.
+ */
+export async function creditDeposit(
+  userId: string,
+  amountINR: number,
+  referenceId: string,
+  session: mongoose.mongo.ClientSession
+): Promise<CreditDepositResult> {
+  const isFirstDeposit =
+    (await WalletTransaction.countDocuments(
+      { userId: new mongoose.Types.ObjectId(userId), type: 'deposit' },
+      { session }
+    )) === 0;
+
+  await updateBalance(userId, {
+    type: 'deposit',
+    amount: amountINR,
+    referenceId,
+    session,
+  });
+
+  if (isFirstDeposit) {
+    await applyFirstDepositBonus(userId, amountINR, session);
+    const user = await User.findById(userId).session(session).select('referredBy').lean();
+    if (user?.referredBy) {
+      const referral = await Referral.findOne({ referredUserId: new mongoose.Types.ObjectId(userId) }).session(session).lean();
+      if (referral && !referral.firstDepositAt) {
+        const growthConfig = await getGrowthConfig();
+        const rewardAmount = growthConfig.referralRewardType === 'flat' ? growthConfig.referralFlatAmount : 0;
+        if (rewardAmount > 0) {
+          await updateBalance(user.referredBy.toString(), {
+            type: 'referral_commission',
+            amount: rewardAmount,
+            referenceId: `referral_${userId}_${Date.now()}`,
+            session,
+          });
+          await Referral.updateOne(
+            { referredUserId: new mongoose.Types.ObjectId(userId) },
+            { $set: { firstDepositAt: new Date(), commissionEarned: rewardAmount } },
+            { session }
+          );
+        }
+      }
+    }
+  }
+
+  return { isFirstDeposit };
+}
+
 /** Test-only: credit wallet directly without Razorpay. Use when Razorpay is not configured. */
 export async function createTestDeposit(userId: string, amountINR: number): Promise<void> {
   if (amountINR < 1) throw new Error('Minimum amount is 1 INR');
   const session = await getMongoSession();
   try {
     await runTransaction(session, async () => {
-      await updateBalance(userId, {
-        type: 'deposit',
-        amount: amountINR,
-        referenceId: `test_${Date.now()}`,
-        session,
-      });
+      const result = await creditDeposit(userId, amountINR, `test_${Date.now()}`, session);
+      if (result.isFirstDeposit) {
+        // Referrer reward is applied in referral flow when we add it
+      }
     });
     logWithContext('info', 'Test deposit credited', { userId, amount: amountINR });
   } catch (e) {
     if (isReplicaSetRequiredError(e)) {
-      await updateBalance(userId, {
-        type: 'deposit',
-        amount: amountINR,
-        referenceId: `test_${Date.now()}`,
-      });
-      logWithContext('info', 'Test deposit credited (no transaction)', { userId, amount: amountINR });
+      const session2 = await getMongoSession();
+      try {
+        await runTransaction(session2, async () => {
+          await creditDeposit(userId, amountINR, `test_${Date.now()}`, session2);
+        });
+        logWithContext('info', 'Test deposit credited (no transaction)', { userId, amount: amountINR });
+      } finally {
+        await session2.endSession();
+      }
     } else {
       throw e;
     }
@@ -143,21 +201,22 @@ export async function handleWebhookPayload(
         { session }
       );
 
-      await updateBalance(payment.userId.toString(), {
-        type: 'deposit',
+      const result = await creditDeposit(
+        payment.userId.toString(),
         amount,
-        referenceId: razorpayPaymentId,
-        session,
-      });
+        razorpayPaymentId,
+        session
+      );
       logWithContext('info', 'Payment credited', {
         requestId,
         userId: payment.userId.toString(),
         razorpayPaymentId,
         amount,
+        isFirstDeposit: result.isFirstDeposit,
       });
       auditLog('deposit_credited', {
         userId: payment.userId.toString(),
-        metadata: { amount, razorpayPaymentId },
+        metadata: { amount, razorpayPaymentId, isFirstDeposit: result.isFirstDeposit },
       });
     });
   } finally {

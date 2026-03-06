@@ -5,7 +5,7 @@ import { useSocket } from '../../context/SocketContext';
 
 export function Header() {
   const { user, logout } = useAuth();
-  const { walletBalance, connected } = useSocket();
+  const { walletBalance, connected, reconnecting } = useSocket();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -17,12 +17,16 @@ export function Header() {
     navigate('/login');
   }
 
-  const navLinks = [
-    { to: '/dashboard', label: 'Dashboard' },
-    { to: '/wallet', label: 'Wallet' },
-    { to: '/game', label: 'Game' },
-    { to: '/withdrawal', label: 'Withdraw' },
-  ];
+  const isAdmin = user?.role === 'admin';
+  const navLinks = isAdmin
+    ? [{ to: '/dashboard', label: 'Dashboard' }]
+    : [
+        { to: '/dashboard', label: 'Dashboard' },
+        { to: '/wallet', label: 'Wallet' },
+        { to: '/game', label: 'Game' },
+        { to: '/leaderboard', label: 'Leaderboard' },
+        { to: '/withdrawal', label: 'Withdraw' },
+      ];
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -41,7 +45,7 @@ export function Header() {
               {label}
             </Link>
           ))}
-          {user?.role === 'admin' && (
+          {isAdmin && (
             <Link
               to="/admin"
               className="rounded-lg px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50 hover:text-amber-800"
@@ -52,7 +56,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          {walletBalance != null && (
+          {!isAdmin && walletBalance != null && (
             <div className="hidden text-right sm:block">
               <p className="text-sm font-semibold text-slate-900 tabular-nums">
                 ₹{walletBalance.available.toFixed(2)}
@@ -60,13 +64,13 @@ export function Header() {
               <p className="text-xs text-slate-500">Balance</p>
             </div>
           )}
-          {connected !== undefined && (
+          {!isAdmin && connected !== undefined && (
             <span
               className={`hidden rounded-full px-2 py-0.5 text-xs font-medium sm:inline-block ${
                 connected ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
               }`}
             >
-              {connected ? 'Live' : 'Connecting…'}
+              {connected ? 'Live' : reconnecting ? 'Reconnecting…' : 'Connecting…'}
             </span>
           )}
 
@@ -124,7 +128,7 @@ export function Header() {
                 {label}
               </Link>
             ))}
-            {user?.role === 'admin' && (
+            {isAdmin && (
               <Link
                 to="/admin"
                 onClick={() => setMenuOpen(false)}

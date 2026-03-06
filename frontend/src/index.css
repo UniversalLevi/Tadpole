@@ -73,4 +73,21 @@
   .balance-muted {
     @apply text-sm text-slate-500 mt-0.5;
   }
+  .wallet-pulse {
+    animation: wallet-pulse 1.2s ease-out;
+  }
+  .result-reveal {
+    animation: result-reveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+@keyframes wallet-pulse {
+  0% { background-color: rgb(204 251 241); }
+  100% { background-color: transparent; }
+}
+
+@keyframes result-reveal {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }

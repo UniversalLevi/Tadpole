@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../api/client';
 import { Modal } from './ui/Modal';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
+
+const SUCCESS_DELAY_MS = 1500;
 
 type Props = { onClose: () => void };
 
@@ -10,6 +12,13 @@ export default function DepositModal({ onClose }: Props) {
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    if (!success) return;
+    const t = setTimeout(onClose, SUCCESS_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [success, onClose]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,7 +31,7 @@ export default function DepositModal({ onClose }: Props) {
     setLoading(true);
     try {
       await api.post('/payment/test-deposit', { amount: Number(num) });
-      onClose();
+      setSuccess(true);
     } catch (err: unknown) {
       const msg = err && typeof err === 'object' && 'response' in err
         ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
@@ -35,6 +44,12 @@ export default function DepositModal({ onClose }: Props) {
 
   return (
     <Modal title="Deposit (testing)" onClose={onClose}>
+      {success ? (
+        <p className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-emerald-800 font-medium">
+          Deposit successful. Updating balance…
+        </p>
+      ) : (
+        <>
       <p className="text-sm text-slate-500 mb-4">
         Amount is added to your wallet directly. No payment gateway.
       </p>
@@ -62,6 +77,8 @@ export default function DepositModal({ onClose }: Props) {
           </Button>
         </div>
       </form>
+        </>
+      )}
     </Modal>
   );
 }

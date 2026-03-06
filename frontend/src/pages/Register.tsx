@@ -7,6 +7,7 @@ import { Input } from '../components/ui/Input';
 export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
@@ -21,7 +22,7 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      await register(email, password);
+      await register(email, password, referralCode || undefined);
       navigate('/dashboard');
     } catch (err: unknown) {
       const msg = err && typeof err === 'object' && 'response' in err
@@ -66,6 +67,14 @@ export default function Register() {
               required
               minLength={8}
               autoComplete="new-password"
+            />
+            <Input
+              label="Referral code (optional)"
+              type="text"
+              placeholder="Enter code"
+              value={referralCode}
+              onChange={(e) => setReferralCode(e.target.value)}
+              autoComplete="off"
             />
             <Button type="submit" variant="primary" className="w-full" loading={loading}>
               Register

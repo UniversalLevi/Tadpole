@@ -7,7 +7,7 @@ import helmet from 'helmet';
 import mongoose from 'mongoose';
 import { connectMongo } from './db/mongo.js';
 import { config } from './config/index.js';
-import { requestId, requestLogger, authRateLimiter, generalRateLimiter, verifyJwt, requireAdmin, betRateLimiter, depositRateLimiter, withdrawRateLimiter } from './middleware/index.js';
+import { requestId, requestLogger, authRateLimiter, generalRateLimiter, verifyJwt, requireAdmin, betRateLimiter, depositRateLimiter } from './middleware/index.js';
 import { logWithContext } from './logs/index.js';
 import { authRoutes } from './auth/index.js';
 import { walletRoutes } from './wallet/index.js';
@@ -16,6 +16,8 @@ import { withdrawalRoutes } from './withdrawal/index.js';
 import { adminRoutes } from './admin/index.js';
 import { betRoutes } from './bet/index.js';
 import { gameRoutes } from './game/index.js';
+import { userRoutes } from './user/index.js';
+import { bonusRoutes } from './bonus/index.js';
 import { initSocket } from './socket/index.js';
 import { recoverRoundOnStartup, startRoundScheduler } from './scheduler/roundScheduler.js';
 
@@ -26,6 +28,9 @@ if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
 
+// In production, redirect HTTP to HTTPS when behind a proxy that sets x-forwarded-proto
+app.use(httpsRedirect);
+// Strict CORS: set FRONTEND_ORIGIN to a single allowed origin (no wildcard) in production
 app.use(cors({ origin: config.frontendOrigin, credentials: true }));
 app.use(helmet());
 app.use(requestId);
@@ -50,15 +55,25 @@ app.get('/health', async (_req, res) => {
 app.use('/auth', authRateLimiter, authRoutes);
 app.use('/wallet', verifyJwt, walletRoutes);
 app.use('/payment', verifyJwt, paymentRoutes);
-app.use('/withdrawal', verifyJwt, withdrawRateLimiter, withdrawalRoutes);
+app.use('/withdrawal', verifyJwt, withdrawalRoutes);
 app.use('/bet', verifyJwt, betRateLimiter, betRoutes);
 app.use('/game', gameRoutes);
+app.use('/user', verifyJwt, userRoutes);
+app.use('/bonus', verifyJwt, bonusRoutes);
 app.use('/admin', verifyJwt, requireAdmin, adminRoutes);
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logWithContext('error', 'Unhandled error', { error: err.message, stack: err.stack });
-  res.status(500).json({ error: 'Internal server error' });
+  const isProduction = config.nodeEnv === 'production';
+  res.status(500).json(isProduction ? { error: 'Internal server error' } : { error: err.message, stack: err.stack });
 });
+
+function httpsRedirect(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (config.nodeEnv !== 'production') return next();
+  const proto = req.get('x-forwarded-proto');
+  if (proto === 'https') return next();
+  res.redirect(301, `https://${req.get('host') ?? req.hostname}${req.originalUrl}`);
+}
 
 async function start() {
   await connectMongo();

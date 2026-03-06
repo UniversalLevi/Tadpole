@@ -63,6 +63,7 @@ export async function recoverRoundOnStartup(): Promise<void> {
 let tickInterval: ReturnType<typeof setInterval> | null = null;
 let lastClosedRoundId: string | null = null;
 let lastClosedAt: number = 0;
+let lastSettledAt: number = 0;
 
 export function startRoundScheduler(): void {
   if (tickInterval) return;
@@ -72,6 +73,9 @@ export function startRoundScheduler(): void {
       if (!round) {
         const sys = await getSystemConfig();
         if (sys.newRoundsPaused) return;
+        const now = Date.now();
+        const gapMs = config.roundGapAfterSettleMs;
+        if (lastSettledAt && now - lastSettledAt < gapMs) return; // 5 sec gap before next round
         const created = await createNextRound();
         emitRoundStarted({
           roundId: created._id.toString(),
@@ -104,6 +108,7 @@ export function startRoundScheduler(): void {
         if (elapsed >= config.closingBufferMs) {
           const result = await settleRound(roundId);
           if (result) {
+            lastSettledAt = Date.now();
             emitRoundResult({ roundId, result: result.result, serverSeed: result.serverSeed });
             const { getWallet } = await import('../wallet/wallet.service.js');
             for (const uid of result.affectedUserIds) {

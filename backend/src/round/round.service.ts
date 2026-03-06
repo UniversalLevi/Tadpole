@@ -1,12 +1,13 @@
 import mongoose from 'mongoose';
-import { Round, Bet } from '../models/index.js';
+import { Round, Bet, DailyStats } from '../models/index.js';
 import { config } from '../config/index.js';
 import { getMongoSession, runTransaction } from '../db/mongo.js';
 import { generateServerSeed, hashServerSeed, computeResult } from '../game/provablyFair.js';
-import { settleBet } from '../wallet/wallet.service.js';
+import { settleBet, recordWagerAndBonusProgress } from '../wallet/wallet.service.js';
 import { logWithContext } from '../logs/index.js';
 
 type RoundDoc = { _id: mongoose.Types.ObjectId; roundNumber: number; status: string; bettingClosesAt: Date; serverSeedHash: string; result?: number; serverSeed?: string; totalBetAmount: number };
+/** In-memory cache for the current round; cleared when round settles. Avoids hitting Mongo on every timer tick. */
 let currentRoundCache: { id: string; doc: RoundDoc } | null = null;
 
 export function getCurrentRoundFromCache() {
@@ -19,7 +20,12 @@ export function setCurrentRoundCache(round: RoundDoc | null) {
 
 export async function getCurrentRound(): Promise<RoundDoc | null> {
   if (currentRoundCache) return currentRoundCache.doc;
+  const start = Date.now();
   const round = await Round.findOne({ status: { $in: ['betting', 'closed'] } }).sort({ roundNumber: -1 }).lean();
+  const durationMs = Date.now() - start;
+  if (durationMs > config.slowQueryMs) {
+    logWithContext('warn', 'Slow getCurrentRound (cache miss)', { durationMs });
+  }
   if (round) {
     const doc = round as RoundDoc;
     currentRoundCache = { id: doc._id.toString(), doc };
@@ -139,12 +145,31 @@ export async function settleRound(roundId: string): Promise<{ result: number; se
           bet._id.toString(),
           session
         );
+        await recordWagerAndBonusProgress(bet.userId.toString(), bet.amount, session);
         await Bet.updateOne(
           { _id: bet._id },
           { $set: { status: won ? 'won' : 'lost', payoutAmount } },
           { session }
         );
         affectedUserIds.push(bet.userId.toString());
+      }
+      const roundTotalBetVolume = bets.reduce((s, b) => s + b.amount, 0);
+      const roundTotalPayout = bets.reduce(
+        (s, b) => s + (b.prediction === result ? b.amount * (multiplier + 1) : 0),
+        0
+      );
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const updated = await DailyStats.findOneAndUpdate(
+        { date: dateStr },
+        { $inc: { totalBetVolume: roundTotalBetVolume, totalPayout: roundTotalPayout } },
+        { upsert: true, new: true, session }
+      );
+      if (updated) {
+        await DailyStats.updateOne(
+          { date: dateStr },
+          { $set: { netRevenue: updated.totalBetVolume - updated.totalPayout } },
+          { session }
+        );
       }
     });
     setCurrentRoundCache(null);

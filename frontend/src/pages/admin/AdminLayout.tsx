@@ -3,6 +3,8 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 const tabs = [
   { to: '/admin', label: 'Users' },
   { to: '/admin/withdrawals', label: 'Withdrawals' },
+  { to: '/admin/bonuses', label: 'Bonuses' },
+  { to: '/admin/growth', label: 'Growth' },
   { to: '/admin/settings', label: 'Settings' },
 ];
 

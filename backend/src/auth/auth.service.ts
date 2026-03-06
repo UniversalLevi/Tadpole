@@ -1,26 +1,64 @@
+import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { User, RefreshToken } from '../models/index.js';
+import { User, RefreshToken, Referral } from '../models/index.js';
 import { config } from '../config/index.js';
 import { logWithContext } from '../logs/index.js';
 import { createWalletIfMissing } from '../wallet/wallet.service.js';
 
 const BCRYPT_ROUNDS = 12;
 
-export async function register(email: string, password: string) {
+function generateReferralCode(): string {
+  return crypto.randomBytes(5).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase() || 'X'.repeat(8);
+}
+
+async function ensureUniqueReferralCode(): Promise<string> {
+  for (let i = 0; i < 10; i++) {
+    const code = generateReferralCode();
+    const exists = await User.exists({ referralCode: code });
+    if (!exists) return code;
+  }
+  return generateReferralCode() + Date.now().toString(36).slice(-4);
+}
+
+export async function register(email: string, password: string, referralCode?: string, referredIp?: string) {
   const existing = await User.findOne({ email: email.toLowerCase() });
   if (existing) {
     throw new Error('User already exists');
   }
-  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-  const user = await User.create({
+  const refCode = await ensureUniqueReferralCode();
+  const userPayload: {
+    email: string;
+    passwordHash: string;
+    role: string;
+    isVerified: boolean;
+    isFrozen: boolean;
+    referralCode: string;
+    referredBy?: import('mongoose').Types.ObjectId;
+  } = {
     email: email.toLowerCase(),
-    passwordHash,
+    passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS),
     role: 'user',
     isVerified: false,
     isFrozen: false,
-  });
+    referralCode: refCode,
+  };
+  if (referralCode && referralCode.trim()) {
+    const referrer = await User.findOne({ referralCode: referralCode.trim().toUpperCase() }).select('_id').lean();
+    if (referrer) {
+      userPayload.referredBy = referrer._id;
+    }
+  }
+  const user = await User.create(userPayload);
   await createWalletIfMissing(user._id);
+  if (user.referredBy) {
+    await Referral.create({
+      referrerId: user.referredBy,
+      referredUserId: user._id,
+      commissionEarned: 0,
+      referredIp: referredIp || undefined,
+    });
+  }
   return { userId: user._id.toString(), email: user.email, role: user.role };
 }
 

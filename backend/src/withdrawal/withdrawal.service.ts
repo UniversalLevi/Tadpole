@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { User, WithdrawalRequest } from '../models/index.js';
+import { User, WithdrawalRequest, UserBonus } from '../models/index.js';
 import { config } from '../config/index.js';
 import { getSystemConfig } from '../models/SystemConfig.js';
 import { getMongoSession, runTransaction } from '../db/mongo.js';
@@ -20,6 +20,15 @@ export async function createWithdrawalRequest(userId: string, amount: number) {
   if (user.isFrozen) throw new Error('Account is frozen');
   if (amount < config.minWithdrawalAmount) {
     throw new Error(`Minimum withdrawal is ${config.minWithdrawalAmount} INR`);
+  }
+
+  const activeBonusWithUnmetWager = await UserBonus.findOne({
+    userId: new mongoose.Types.ObjectId(userId),
+    status: 'active',
+    $expr: { $lt: ['$wagerCompleted', '$wagerRequired'] },
+  }).lean();
+  if (activeBonusWithUnmetWager) {
+    throw new Error('Complete bonus wagering before withdrawal.');
   }
 
   const now = Date.now();

@@ -13,8 +13,8 @@ router.post('/register', registerRateLimiter, async (req: Request, res: Response
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
     }
-    const { email, password } = parsed.data.body;
-    const result = await register(email, password);
+    const { email, password, referralCode } = parsed.data.body;
+    const result = await register(email, password, referralCode, req.ip);
     logWithContext('info', 'User registered', { requestId: req.requestId, userId: result.userId });
     auditLog('register', { userId: result.userId, ipAddress: req.ip, userAgent: req.get('user-agent') });
     return res.status(201).json(result);

@@ -39,6 +39,11 @@ async function clean() {
     'rounds',
     'wallets',
     'users',
+    'bonuses',
+    'userbonuses',
+    'referrals',
+    'dailystats',
+    'growthconfigs',
   ];
 
   console.log('Cleaning Tadpole collections...');

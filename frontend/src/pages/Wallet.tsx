@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import DepositModal from '../components/DepositModal';
 import { Card } from '../components/ui/Card';
@@ -9,11 +10,11 @@ type WalletData = { availableBalance: number; lockedBalance: number; currency: s
 type Tx = { _id: string; type: string; amount: number; balanceAfter: number; createdAt: string };
 
 export default function Wallet() {
+  const { user } = useAuth();
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [transactions, setTransactions] = useState<{ items: Tx[] }>({ items: [] });
   const [depositOpen, setDepositOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-
   function load() {
     Promise.all([
       api.get<WalletData>('/wallet'),
@@ -31,6 +32,8 @@ export default function Wallet() {
     load();
   }, []);
 
+  if (user?.role === 'admin') return <Navigate to="/admin" replace />;
+
   if (loading) {
     return (
       <div className="page-container flex justify-center py-20">
@@ -41,7 +44,10 @@ export default function Wallet() {
   if (!wallet) {
     return (
       <div className="page-container">
-        <p className="text-red-600">Failed to load wallet</p>
+        <p className="text-red-600">Failed to load wallet.</p>
+        <Button variant="secondary" onClick={() => { setLoading(true); load(); }} className="mt-2">
+          Retry
+        </Button>
       </div>
     );
   }
@@ -85,7 +91,7 @@ export default function Wallet() {
             {transactions.items.map((tx) => (
               <li key={tx._id} className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0">
                 <span className="font-medium text-slate-700">{tx.type}</span>
-                <span className={tx.amount >= 0 ? 'text-emerald-600' : 'text-slate-600'}>
+                <span className={tx.amount >= 0 ? 'text-emerald-600' : 'text-red-600 font-medium'}>
                   {tx.amount >= 0 ? '+' : ''}{tx.amount} → {tx.balanceAfter}
                 </span>
                 <span className="w-full text-sm text-slate-500 sm:w-auto">

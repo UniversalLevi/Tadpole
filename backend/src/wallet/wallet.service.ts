@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
-import { Wallet, WalletTransaction } from '../models/index.js';
+import { Wallet, WalletTransaction, User, UserBonus } from '../models/index.js';
 import type { WalletTransactionType } from '../models/index.js';
+import { getGrowthConfig } from '../models/GrowthConfig.js';
+import { computeVipLevel } from '../lib/vip.js';
 import { getMongoSession, runTransaction } from '../db/mongo.js';
 import { logWithContext } from '../logs/index.js';
 
@@ -224,4 +226,39 @@ export async function settleBet(
     opts
   );
   logWithContext('info', 'Bet settled', { userId, betAmount, payoutAmount, referenceId });
+}
+
+/**
+ * Record wager for a user: increment totalWagered, update active userBonuses (wagerCompleted),
+ * mark completed when wager met, and recalculate VIP level. Must be called within an existing session.
+ */
+export async function recordWagerAndBonusProgress(
+  userId: string,
+  amount: number,
+  session: mongoose.mongo.ClientSession
+): Promise<void> {
+  const uid = new mongoose.Types.ObjectId(userId);
+  const opts = { session };
+  await User.updateOne({ _id: uid }, { $inc: { totalWagered: amount } }, opts);
+  await UserBonus.updateMany(
+    { userId: uid, status: 'active' },
+    { $inc: { wagerCompleted: amount } },
+    opts
+  );
+  const activeBonuses = await UserBonus.find({ userId: uid, status: 'active' }).session(session).lean();
+  for (const ub of activeBonuses) {
+    if (ub.wagerCompleted >= ub.wagerRequired) {
+      await UserBonus.updateOne({ _id: ub._id }, { $set: { status: 'completed' } }, opts);
+    }
+  }
+  const config = await getGrowthConfig();
+  const user = await User.findById(uid).session(session).select('totalWagered vipLevel').lean();
+  if (user) {
+    const newLevel = computeVipLevel(user.totalWagered, config);
+    const currentLevelOrder = ['bronze', 'silver', 'gold', 'platinum'].indexOf(user.vipLevel ?? 'bronze');
+    const newLevelOrder = ['bronze', 'silver', 'gold', 'platinum'].indexOf(newLevel);
+    if (newLevelOrder > currentLevelOrder) {
+      await User.updateOne({ _id: uid }, { $set: { vipLevel: newLevel } }, opts);
+    }
+  }
 }
