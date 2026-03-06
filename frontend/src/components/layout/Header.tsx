@@ -23,7 +23,7 @@ export function Header() {
     : [
         { to: '/dashboard', label: 'Dashboard' },
         { to: '/wallet', label: 'Wallet' },
-        { to: '/game', label: 'Game' },
+        { to: '/games', label: 'Games' },
         { to: '/leaderboard', label: 'Leaderboard' },
         { to: '/withdrawal', label: 'Withdraw' },
       ];

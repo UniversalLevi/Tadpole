@@ -91,7 +91,7 @@ export default function Dashboard() {
 
   const quickLinks = [
     { to: '/wallet', label: 'Wallet', desc: 'Deposit & view balance' },
-    { to: '/game', label: 'Game', desc: 'Number prediction (0–9)' },
+    { to: '/games', label: 'Games', desc: 'Prediction & Aviator' },
     { to: '/leaderboard', label: 'Leaderboard', desc: 'Top players' },
     { to: '/withdrawal', label: 'Withdraw', desc: 'Request withdrawal' },
   ];

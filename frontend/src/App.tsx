@@ -11,7 +11,7 @@ const Register = lazy(() => import('./pages/Register'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Wallet = lazy(() => import('./pages/Wallet'));
 const Withdrawal = lazy(() => import('./pages/Withdrawal'));
-const Game = lazy(() => import('./pages/Game'));
+const Games = lazy(() => import('./pages/Games'));
 const Leaderboard = lazy(() => import('./pages/Leaderboard'));
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
 const AdminUsers = lazy(() => import('./pages/admin/Users'));
@@ -44,7 +44,9 @@ function App() {
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="wallet" element={<Wallet />} />
                 <Route path="withdrawal" element={<Withdrawal />} />
-                <Route path="game" element={<Game />} />
+                <Route path="games" element={<Games />} />
+                <Route path="game" element={<Navigate to="/games?tab=prediction" replace />} />
+                <Route path="aviator" element={<Navigate to="/games?tab=aviator" replace />} />
                 <Route path="leaderboard" element={<Leaderboard />} />
               </Route>
               <Route

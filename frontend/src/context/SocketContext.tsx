@@ -29,6 +29,7 @@ type SocketContextType = {
   reconnecting: boolean;
   bettingPaused: boolean;
   refetchRound: () => Promise<void>;
+  getSocket: () => Socket | null;
 };
 
 const defaultRound: RoundState = {
@@ -177,7 +178,19 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   }, [connected, refetchRound]);
 
   return (
-    <SocketContext.Provider value={{ round, lastResult, walletBalance, walletUpdatedAt, connected, reconnecting, bettingPaused, refetchRound }}>
+    <SocketContext.Provider
+      value={{
+        round,
+        lastResult,
+        walletBalance,
+        walletUpdatedAt,
+        connected,
+        reconnecting,
+        bettingPaused,
+        refetchRound,
+        getSocket: () => socketRef.current,
+      }}
+    >
       {children}
     </SocketContext.Provider>
   );

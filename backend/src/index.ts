@@ -19,7 +19,8 @@ import { gameRoutes } from './game/index.js';
 import { userRoutes } from './user/index.js';
 import { bonusRoutes } from './bonus/index.js';
 import { initSocket } from './socket/index.js';
-import { recoverRoundOnStartup, startRoundScheduler } from './scheduler/roundScheduler.js';
+import { recoverRoundOnStartup, startAviatorEngine, startRoundScheduler } from './scheduler/roundScheduler.js';
+import { aviatorRoutes } from './games/aviator/index.js';
 
 const app = express();
 
@@ -58,6 +59,7 @@ app.use('/payment', verifyJwt, paymentRoutes);
 app.use('/withdrawal', verifyJwt, withdrawalRoutes);
 app.use('/bet', verifyJwt, betRateLimiter, betRoutes);
 app.use('/game', gameRoutes);
+app.use('/aviator', verifyJwt, aviatorRoutes);
 app.use('/user', verifyJwt, userRoutes);
 app.use('/bonus', verifyJwt, bonusRoutes);
 app.use('/admin', verifyJwt, requireAdmin, adminRoutes);
@@ -81,6 +83,7 @@ async function start() {
   initSocket(httpServer);
   await recoverRoundOnStartup();
   startRoundScheduler();
+  startAviatorEngine();
   httpServer.listen(config.port, () => {
     logWithContext('info', 'Server started', { port: config.port });
   });

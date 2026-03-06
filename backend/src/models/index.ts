@@ -19,3 +19,7 @@ export { DailyStats } from './DailyStats.js';
 export { GrowthConfigModel, getGrowthConfig, updateGrowthConfig } from './GrowthConfig.js';
 export type { GrowthConfigDoc } from './GrowthConfig.js';
 export type { VIPLevel } from './User.js';
+export { AviatorRound } from './AviatorRound.js';
+export type { AviatorRoundStatus } from './AviatorRound.js';
+export { AviatorBet } from './AviatorBet.js';
+export type { AviatorBetStatus } from './AviatorBet.js';
